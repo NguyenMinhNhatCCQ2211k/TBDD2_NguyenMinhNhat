@@ -1,69 +1,86 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
-import { Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface Props {
   navigation: any;
 }
 
 const LoginScreen: React.FC<Props> = ({ navigation }) => {
-  const [email, setEmail] = useState<string>('');
+  const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>(''); // Thông báo lỗi
 
-  const handleLogin = () => {
-    const fixedEmail = 'nhat'; // Email cố định
-    const fixedPassword = '123456'; // Mật khẩu cố định
+  const handleLogin = async () => {
+    if (!username || !password) {
+      setErrorMessage('Vui lòng nhập tên người dùng và mật khẩu.');
+      return; // Dừng hàm nếu không đủ thông tin
+    }
 
-    if (email === fixedEmail && password === fixedPassword) {
-      console.log('Đăng nhập thành công');
-      router.push('/home');
-    } else {
-      setErrorMessage('Email hoặc mật khẩu không đúng');
+    try {
+      const response = await fetch('https://fakestoreapi.com/users');
+      const data = await response.json(); 
+      const user = data.find((user: any) => user.username === username && user.password === password);
 
-      // Đặt timeout để xóa thông báo sau 3 giây
-      setTimeout(() => {
-        setErrorMessage('');
-      }, 3000);
+      if (user) {
+        console.log('Đăng nhập thành công');
+
+        // Lưu ID người dùng vào AsyncStorage
+        await AsyncStorage.setItem('userId', user.id.toString());
+
+        // Gửi ID người dùng về màn hình Home
+        router.push(`/home?userId=${user.id}`); 
+      } else {
+        setErrorMessage('Tên người dùng hoặc mật khẩu không đúng');
+        setTimeout(() => {
+          setErrorMessage('');
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Lỗi:', error);
+      setErrorMessage('Đã xảy ra lỗi, vui lòng thử lại.');
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Đăng nhập</Text>
+      <Image
+        source={require('../assets/images/OIP (1).jpg')}
+        style={styles.logo}
+      />
+
+      <Text style={styles.title}>LOG IN</Text>
 
       <TextInput
         style={styles.input}
-        placeholder="Nhập email"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
+        placeholder="Enter a username"
+        value={username}
+        onChangeText={setUsername}
       />
 
       <TextInput
         style={styles.input}
-        placeholder="Nhập mật khẩu"
+        placeholder="Password"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
       />
 
-      {/* Hiển thị thông báo lỗi nếu có */}
       {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
 
       <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-        <Text style={styles.loginButtonText}>Đăng nhập</Text>
+        <Text style={styles.loginButtonText}>Sign In</Text>
       </TouchableOpacity>
 
       <TouchableOpacity>
-        <Text style={styles.forgotPasswordText}>Quên mật khẩu?</Text>
+        <Text style={styles.forgotPasswordText}>Forgot your password?</Text>
       </TouchableOpacity>
 
       <View style={styles.registerContainer}>
-        <Text>Chưa có tài khoản?</Text>
+        <Text>Don't have an account yet?</Text>
         <TouchableOpacity onPress={() => router.push('/register')}>
-          <Text style={styles.registerText}> Đăng ký ngay</Text>
+          <Text style={styles.registerText}> Register now</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -76,6 +93,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     padding: 16,
     justifyContent: 'center',
+  },
+  logo: {
+    width: 150,
+    height: 150,
+    alignSelf: 'center',
+    marginBottom: 10,
   },
   title: {
     fontSize: 24,

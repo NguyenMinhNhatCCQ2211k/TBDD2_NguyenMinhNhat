@@ -15,11 +15,11 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Đăng ký</Text>
+      <Text style={styles.title}>Register</Text>
 
       <TextInput
         style={styles.input}
-        placeholder="Nhập email"
+        placeholder="Enter email"
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
@@ -27,7 +27,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
 
       <TextInput
         style={styles.input}
-        placeholder="Nhập mật khẩu"
+        placeholder="Password"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
@@ -35,20 +35,20 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
 
       <TextInput
         style={styles.input}
-        placeholder="Xác nhận mật khẩu"
+        placeholder="confirm Password"
         value={confirmPassword}
         onChangeText={setConfirmPassword}
         secureTextEntry
       />
 
       <TouchableOpacity style={styles.registerButton}>
-        <Text style={styles.registerButtonText}>Đăng ký</Text>
+        <Text style={styles.registerButtonText}>Register</Text>
       </TouchableOpacity>
 
       <View style={styles.loginContainer}>
        
         <TouchableOpacity onPress={() => router.push('/login')}>
-          <Text style={styles.loginText}> Trở lại đăng nhập</Text>
+          <Text style={styles.loginText}> Back to Login</Text>
         </TouchableOpacity>
       </View>
     </View>

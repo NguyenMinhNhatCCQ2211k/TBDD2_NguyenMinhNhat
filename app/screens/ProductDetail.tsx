@@ -1,191 +1,310 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, Image, StyleSheet, TouchableOpacity, ScrollView, ImageBackground } from 'react-native';
+import Slider from '@react-native-community/slider';
+import { useNavigation, RouteProp } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/Ionicons';
+import AntDesign from 'react-native-vector-icons/AntDesign';
+import { showMessage } from 'react-native-flash-message';
+import { StackNavigationProp } from '@react-navigation/stack';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const ProductDetailScreen = () => {
-  const [quantity, setQuantity] = useState(1); // State để theo dõi số lượng
+type RootParamList = {
+  ProductDetail: { id: number };
+  Cart: undefined;  
+};
 
-  const product = {
-    name: 'Sản phẩm mẫu',
-    version: 'Phiên bản 1.0',
-    image: require('../../assets/images/OIP (8).jpg'),
-    dimensions: '15 x 7 x 0.8 cm',
-    weight: '150 g',
-    material: 'Nhựa',
-    connectivity: 'USB, Bluetooth, 3.5mm',
-    batteryLife: '10 giờ',
-    specialFeatures: 'Chống nước, Âm thanh chất lượng cao',
-    audioTechnology: 'Chống ồn',
-    softwareFeatures: 'Ứng dụng điều khiển, tính năng tùy chỉnh',
-    colors: ['#000000', '#00BFFF', '#FF0000'],
-    price: '1.500.000 VNĐ',
-    warranty: '12 tháng',
-    additionalInfo: 'Nơi sản xuất: Việt Nam, Mã sản phẩm: 12345',
+// Định nghĩa kiểu route và navigation
+type ProductDetailRouteProp = RouteProp<RootParamList, 'ProductDetail'>;
+type ProductDetailNavigationProp = StackNavigationProp<RootParamList, 'ProductDetail'>;
+
+
+interface Product {
+  id: number;
+  title: string;
+  price: number;
+  description: string;
+  category: string;
+  image: string;
+  rating: {
+    rate: number;
+    count: number;
+  };
+}
+
+// Định nghĩa kiểu dữ liệu CartItem
+interface CartItem {
+  productId: number;
+  title: string;
+  price: number;
+  quantity: number;
+  selectedColor: string;
+  image:string
+}
+
+interface Props {
+  route: ProductDetailRouteProp;
+  navigation: ProductDetailNavigationProp;
+}
+
+const ProductDetail: React.FC<Props> = ({ route, navigation }) => {
+  const { id } = route.params;
+  const [product, setProduct] = useState<Product | null>(null);
+  const [quantity, setQuantity] = useState<number>(1);
+  const [selectedColor, setSelectedColor] = useState<string>('black');
+
+
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        const response = await fetch(`https://fakestoreapi.com/products/${id}`);
+        const data = await response.json();
+        setProduct(data);
+      } catch (error) {
+        console.error('Error fetching product details:', error);
+      }
+    };
+
+    fetchProduct();
+  }, [id]);
+
+  if (!product) {
+    return <Text>Loading...</Text>;
+  }
+
+  const handleAddToCart = async () => {
+    // Kiểm tra nếu product chưa được tải
+    if (!product) {
+      console.error('Product not available');
+      return;
+    }
+
+    // Hiển thị thông báo khi thêm sản phẩm vào giỏ hàng
+    showMessage({
+      message: `Đã thêm ${quantity} sản phẩm vào giỏ hàng!`,
+      type: 'success',
+      duration: 3000,
+      position: 'top',
+    });
+
+    const cartItem: CartItem = {
+      productId: product.id,
+      title: product.title,
+      price: product.price,
+      quantity,
+      image:product.image,
+      selectedColor,
+    };
+
+    console.log('Cart Item:', cartItem);
+
+    try {
+      const existingCart = await AsyncStorage.getItem('cartItems');
+      const cartItems: CartItem[] = existingCart ? JSON.parse(existingCart) : [];
+      
+      const existingItemIndex = cartItems.findIndex((item: CartItem) => 
+        item.productId === product.id && item.selectedColor === selectedColor
+      );
+      
+      if (existingItemIndex >= 0) {
+        // Nếu sản phẩm đã tồn tại, cập nhật số lượng
+        cartItems[existingItemIndex].quantity += quantity;
+      } else {
+        // Nếu không, thêm sản phẩm mới vào giỏ hàng
+        cartItems.push(cartItem);
+      }
+
+      await AsyncStorage.setItem('cartItems', JSON.stringify(cartItems));
+    } catch (error) {
+      console.error('Error saving cart items:', error);
+    }
   };
 
-  const increaseQuantity = () => setQuantity((prev) => prev + 1);
-  const decreaseQuantity = () => setQuantity((prev) => (prev > 1 ? prev - 1 : 1));
-
   return (
-    <ScrollView style={styles.container}>
-      <Image source={product.image} style={styles.productImage} />
-      <Text style={styles.productName}>{product.name}</Text>
-      <Text style={styles.productVersion}>{product.version}</Text>
+    <ImageBackground
+      source={require('../../assets/images/BG.jpg')}
+      style={styles.background}
+    >
+      <ScrollView contentContainerStyle={styles.container}>
+        {/* Header với nút quay lại và giỏ hàng */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Icon name="arrow-back" size={24} color="#000" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Product Details</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Cart')} style={styles.cartButton}>
+            <Icon name="cart-outline" size={24} color="#000" />
+          </TouchableOpacity>
+        </View>
 
-      <Text style={styles.sectionTitle}>Thông số kỹ thuật</Text>
-      <View style={styles.specsContainer}>
-        <Text style={styles.specsItem}>
-          Kích thước và trọng lượng: {product.dimensions} ({product.weight})
-        </Text>
-        <Text style={styles.specsItem}>Chất liệu: {product.material}</Text>
-        <Text style={styles.specsItem}>Kết nối: {product.connectivity}</Text>
-        <Text style={styles.specsItem}>Thời gian sử dụng pin: {product.batteryLife}</Text>
-      </View>
+        <Image source={{ uri: product.image }} style={styles.productImage} />
 
-      <Text style={styles.sectionTitle}>Chức năng và tính năng</Text>
-      <View style={styles.featuresContainer}>
-        <Text style={styles.featuresItem}>Chức năng đặc biệt: {product.specialFeatures}</Text>
-        <Text style={styles.featuresItem}>Công nghệ âm thanh: {product.audioTechnology}</Text>
-        <Text style={styles.softwareFeatures}>{product.softwareFeatures}</Text>
-      </View>
+        <Text style={styles.title}>{product.title}</Text>
+        <Text style={styles.category}>Category: {product.category}</Text>
+        <Text style={styles.price}>Price: ${product.price.toFixed(2)}</Text>
 
+        {/* Hiển thị đánh giá với biểu tượng sao */}
+        <View style={styles.ratingContainer}>
+          <Text style={styles.rating}>Rating: {product.rating.rate}</Text>
+          <AntDesign name="star" size={20} color="gold" />
+          <Text style={styles.reviewCount}> ({product.rating.count} reviews)</Text>
+        </View>
 
+        {/* Mô tả sản phẩm */}
+        <View style={styles.descriptionContainer}>
+          <Text style={styles.description}>{product.description}</Text>
+        </View>
 
-      <Text style={styles.sectionTitle}>Màu sắc</Text>
-      <View style={styles.colorContainer}>
-        {product.colors.map((color, index) => (
-          <View key={index} style={[styles.colorBox, { backgroundColor: color }]} />
-        ))}
-      </View>
+        {/* Chọn màu sắc */}
+        <View style={styles.colorContainer}>
+          <Text style={styles.label}>Select Color:</Text>
+          <View style={styles.colors}>
+            {['black', 'red', 'blue', 'white'].map(color => (
+              <TouchableOpacity
+                key={color}
+                onPress={() => setSelectedColor(color)}
+                style={[styles.colorOption, { backgroundColor: color }, selectedColor === color && styles.selectedColor]}
+              />
+            ))}
+          </View>
+        </View>
 
-      <Text style={styles.price}>Giá: {product.price}</Text>
+        {/* Chọn số lượng */}
+        <View style={styles.quantityContainer}>
+          <Text style={styles.label}>Quantity: {quantity}</Text>
+          <Slider
+            style={{ width: 200, height: 40 }}
+            minimumValue={1}
+            maximumValue={10}
+            step={1}
+            value={quantity}
+            onValueChange={setQuantity}
+            minimumTrackTintColor="#1EB1FC"
+            maximumTrackTintColor="#000000"
+          />
+        </View>
 
-      {/* Thanh tăng giảm số lượng */}
-      <View style={styles.quantityContainer}>
-        <TouchableOpacity onPress={decreaseQuantity} style={styles.quantityButton}>
-          <Text style={styles.quantityButtonText}>-</Text>
+        {/* Nút Thêm vào giỏ hàng */}
+        <TouchableOpacity style={styles.addButton} onPress={handleAddToCart}>
+          <Text style={styles.addButtonText}>Add to Cart</Text>
         </TouchableOpacity>
-        <Text style={styles.quantityText}>{quantity}</Text>
-        <TouchableOpacity onPress={increaseQuantity} style={styles.quantityButton}>
-          <Text style={styles.quantityButtonText}>+</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Nút mua ngay */}
-      <TouchableOpacity style={styles.buyNowButton}>
-        <Text style={styles.buyNowButtonText}>Mua ngay</Text>
-      </TouchableOpacity>
-
-      <Text style={styles.sectionTitle}>Bảo hành 12 tháng</Text>
-
-      <Text style={styles.sectionTitle}>Thông tin thêm</Text>
-      <Text style={styles.additionalInfo}>{product.additionalInfo}</Text>
-    </ScrollView>
+      </ScrollView>
+    </ImageBackground>
   );
 };
 
+// Styles cho component
 const styles = StyleSheet.create({
-  container: {
+  background: {
     flex: 1,
+    resizeMode: 'cover',
+  },
+  container: {
     padding: 20,
-    backgroundColor: '#fff',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    borderRadius: 10,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    paddingVertical: 10,
+  },
+  backButton: {
+    padding: 10,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  cartButton: {
+    padding: 10,
   },
   productImage: {
-    width: '100%',
-    height: 300,
+    width: 200,
+    height: 200,
     borderRadius: 10,
     marginBottom: 20,
   },
-  productName: {
+  title: {
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 10,
   },
-  productVersion: {
+  category: {
     fontSize: 18,
     color: 'gray',
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
     marginBottom: 10,
-  },
-  specsContainer: {
-    backgroundColor: '#f9f9f9',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
-  },
-  specsItem: {
-    fontSize: 16,
-    marginBottom: 5,
-  },
-  featuresContainer: {
-    backgroundColor: '#f9f9f9',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
-  },
-  featuresItem: {
-    fontSize: 16,
-    marginBottom: 5,
-  },
-  softwareFeatures: {
-    fontSize: 16,
-    marginBottom: 10,
-  },
-  colorContainer: {
-    flexDirection: 'row',
-    marginBottom: 10,
-  },
-  colorBox: {
-    width: 30,
-    height: 30,
-    borderRadius: 5,
-    marginRight: 10,
   },
   price: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 20,
+    color: '#ff3d00',
     marginBottom: 10,
   },
-  quantityContainer: {
+  ratingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 10,
   },
-  quantityButton: {
-    backgroundColor: '#ddd',
+  rating: {
+    fontSize: 16,
+    marginRight: 5,
+  },
+  reviewCount: {
+    fontSize: 16,
+    color: 'gray',
+  },
+  descriptionContainer: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 20,
+    backgroundColor: '#FFFFFF',
+  },
+  description: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  colorContainer: {
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  colors: {
+    flexDirection: 'row',
+    marginBottom: 10,
+  },
+  colorOption: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    margin: 5,
+  },
+  selectedColor: {
+    borderWidth: 2,
+    borderColor: 'gray',
+  },
+  quantityContainer: {
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  addButton: {
+    backgroundColor: '#1EB1FC',
     padding: 10,
     borderRadius: 5,
-  },
-  quantityButtonText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  quantityText: {
-    marginHorizontal: 10,
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  buyNowButton: {
-    backgroundColor: '#28a745',
-    padding: 15,
-    borderRadius: 5,
+    width: '100%',
     alignItems: 'center',
-    marginBottom: 20,
   },
-  buyNowButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  additionalInfo: {
-    fontSize: 16,
-    marginBottom: 10,
-    backgroundColor: '#f9f9f9',
-    padding: 15,
+  addButtonText: {
+    color: '#fff',
+    fontSize: 18,
   },
 });
 
-export default ProductDetailScreen;
+export default ProductDetail;
